@@ -1,0 +1,65 @@
+# 🎮 Unreal Engine 5 .gitignore
+
+# IDEs y configuración de usuario
+.vs/
+.idea/
+.vscode/
+*.sln.DotSettings.user
+
+# Archivos compilados
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.mod
+*.lai
+*.la
+*.a
+*.lib
+*.exe
+*.out
+*.app
+*.ipa
+*.pdb
+
+# Archivos de proyecto generados por el motor
+*.xcodeproj
+*.xcworkspace
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+
+# Assets precompilados
+SourceArt/**/*.png
+SourceArt/**/*.tga
+
+# Carpetas generadas por el motor
+Build/*
+!Build/**/*.ico
+!Build/*/PakBlacklist*.txt
+Saved/*
+Intermediate/*
+Plugins/**/Intermediate/*
+Plugins/**/Binaries/*
+Binaries/*
+DerivedDataCache/*
+
+# Datos de mapas construidos
+*_BuiltData.uasset
+
+# Plugins de desarrollo
+Plugins/Developer/*
+
+# Archivos binarios grandes (usa Git LFS)
+*.uasset
+*.umap
+*.locres
+*.locmeta
