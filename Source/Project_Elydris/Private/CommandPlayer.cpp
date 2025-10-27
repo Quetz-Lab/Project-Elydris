@@ -5,6 +5,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "PlayerStatsComponent.h"
+#include "HUDWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -27,6 +29,7 @@ void ACommandPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
+  
     // Reinicializar CommandInvoker y JumpCommand si son nulos.
     if (!CommandInvoker)
     {
