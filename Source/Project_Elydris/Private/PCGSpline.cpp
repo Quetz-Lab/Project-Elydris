@@ -138,7 +138,7 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         return Total;
     };
 
-    // ✅ aquí SOLO UNA VEZ
+    // aquí SOLO UNA VEZ
     float SplineLength = 0.0f;
     if (InputSplineData)
     {
