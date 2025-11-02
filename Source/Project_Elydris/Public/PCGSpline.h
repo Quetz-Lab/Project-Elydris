@@ -23,7 +23,7 @@ enum class ESplineSampleMode : uint8
     ByCount         UMETA(DisplayName="By count")
 };
 
-// elemento que ejecuta
+// ⚠️ sí, está deprecated, pero en 5.5 sigue siendo la forma simple
 class FPCGSplinePathSamplerElement : public FSimplePCGElement
 {
 protected:
@@ -44,9 +44,10 @@ public:
     virtual FText GetNodeTooltipText() const override { return NSLOCTEXT("PCG", "SplinePathSamplerTooltip", "Samples a spline and outputs PCG points"); }
 #endif
 
-    // usa uno de los tipos que sí existen
+    // usa un tipo real de 5.5
     virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 
+    // ----- props -----
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Spline")
     ESplineSourceMode SplineSourceMode = ESplineSourceMode::ActorSpline;
 

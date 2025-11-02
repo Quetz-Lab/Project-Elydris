@@ -16,15 +16,30 @@ UPCGSplineSettings::UPCGSplineSettings()
 TArray<FPCGPinProperties> UPCGSplineSettings::InputPinProperties() const
 {
     TArray<FPCGPinProperties> Pins;
-    // entrada de spline (si no llega y el modo es ActorSpline, usamos el spline del actor)
-    Pins.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spline, /*bAllowMultipleConnections=*/false);
+
+    // pin “amplio”, pero restringido a Spline
+    FPCGPinProperties& Pin = Pins.Emplace_GetRef(
+        PCGPinConstants::DefaultInputLabel,
+        EPCGDataType::Any,
+        /*bAllowMultipleConnections=*/false,
+        /*bAllowMultipleData=*/false,
+        FText::FromString(TEXT("Spline input"))
+    );
+    Pin.AllowedTypes = EPCGDataType::Spline;
+
     return Pins;
 }
 
 TArray<FPCGPinProperties> UPCGSplineSettings::OutputPinProperties() const
 {
     TArray<FPCGPinProperties> Pins;
-    Pins.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point);
+    Pins.Emplace(
+        PCGPinConstants::DefaultOutputLabel,
+        EPCGDataType::Point,
+        /*bAllowMultipleConnections=*/false,
+        /*bAllowMultipleData=*/false,
+        FText::GetEmpty()
+    );
     return Pins;
 }
 
@@ -62,7 +77,7 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
     USplineComponent* SplineComponent = nullptr;
     const UPCGSplineData* InputSplineData = nullptr;
 
-    // --- 1. Resolver fuente ---
+    // --- fuente ---
     if (Settings->SplineSourceMode == ESplineSourceMode::InputSpline)
     {
         const TArray<FPCGTaggedData>& Inputs = Context->InputData.GetInputs();
@@ -99,29 +114,34 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         }
     }
 
-    // --- 2. Crear salida ---
+    // --- salida ---
     UPCGComponent* SourcePCG = Context->SourceComponent.Get();
     UObject* Outer = SourcePCG ? static_cast<UObject*>(SourcePCG) : static_cast<UObject*>(GetTransientPackage());
     UPCGPointData* OutPointData = NewObject<UPCGPointData>(Outer);
     TArray<FPCGPoint>& OutPoints = OutPointData->GetMutablePoints();
 
-    // --- 3. Muestrear ---
     const bool bAlign = Settings->bAlignToSpline;
     const bool bConstVel = Settings->bUseConstantVelocity;
 
-    auto SampleAt = [&](float Distance) -> FTransform
+    auto SampleAt = [&](float Distance, float TotalLength) -> FTransform
     {
         if (InputSplineData)
         {
-            return InputSplineData->GetTransformAtDistance(Distance, /*bWorldSpace=*/true, bConstVel);
+            // convertimos distancia → alpha [0..1]
+            const float Alpha = (TotalLength > KINDA_SMALL_NUMBER) ? (Distance / TotalLength) : 0.0f;
+            // UPCGSplineData trabaja en alpha, no en distancia
+            return InputSplineData->GetTransformAtAlpha(Alpha);
         }
         else
         {
+            // USplineComponent sí trabaja en distancia
             return SplineComponent->GetTransformAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World, bConstVel);
         }
     };
 
-    // --- calcular la longitud del spline ---
+
+
+    // helper length para UPCGSplineData
     auto GetPCGSplineDataLength = [](const UPCGSplineData* SplineData) -> float
     {
         if (!SplineData)
@@ -138,7 +158,6 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         return Total;
     };
 
-    // aquí SOLO UNA VEZ
     float SplineLength = 0.0f;
     if (InputSplineData)
     {
@@ -148,6 +167,12 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
     {
         SplineLength = SplineComponent->GetSplineLength();
     }
+    if (SplineLength <= KINDA_SMALL_NUMBER)
+    {
+        PCGE_LOG(Warning, GraphAndLog, FText::FromString(TEXT("Spline Path Sampler: longitud del spline es 0.")));
+        return true;
+    }
+
 
     const float StartDist = FMath::Clamp(Settings->StartDistance, 0.0f, SplineLength);
     const float EndDist   = (Settings->EndDistance > StartDist)
@@ -159,7 +184,8 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         const float Step = FMath::Max(Settings->StepSize, 1.0f);
         for (float D = StartDist; D <= EndDist + KINDA_SMALL_NUMBER; D += Step)
         {
-            FTransform T = SampleAt(D);
+            FTransform T = SampleAt(D, SplineLength);
+
             if (!bAlign)
             {
                 T.SetRotation(FQuat::Identity);
@@ -168,7 +194,7 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
             OutPoints.Emplace_GetRef(T, 1.0f, 0);
         }
     }
-    else // ByCount
+    else
     {
         const int32 Count = FMath::Max(Settings->NumSamples, 2);
         const float Segment = (EndDist - StartDist) / (Count - 1);
@@ -176,7 +202,8 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         for (int32 i = 0; i < Count; ++i)
         {
             const float D = StartDist + Segment * i;
-            FTransform T = SampleAt(D);
+            FTransform T = SampleAt(D, SplineLength);
+
             if (!bAlign)
             {
                 T.SetRotation(FQuat::Identity);
@@ -186,7 +213,6 @@ bool FPCGSplinePathSamplerElement::ExecuteInternal(FPCGContext* Context) const
         }
     }
 
-    // --- 4. Registrar salida ---
     FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
     Output.Data = OutPointData;
     Output.Pin  = PCGPinConstants::DefaultOutputLabel;
