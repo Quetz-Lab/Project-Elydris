@@ -8,7 +8,7 @@ public class Project_Elydris : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PCG" });
+	PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PCG", "AIModule", "GameplayTasks", "NavigationSystem", "UMG", "Niagara" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
