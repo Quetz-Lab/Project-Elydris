@@ -1,30 +1,32 @@
-// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "OptionsModel.h"
+#include "OptionsController.h"
 #include "GameManager.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class PROJECT_ELYDRIS_API UGameManager : public UGameInstance
 {
 	GENERATED_BODY()
 
 public:
-	//Acceso a la instancia del singleton
-	UFUNCTION(BlueprintPure, Category = "Managers")
-	UGameManager* GetGameManager();
+	// Acceso global desde BP: GetGameInstance → cast a UGameManager
+	UFUNCTION(BlueprintPure, Category="Managers")
+	UOptionsModel* GetOptionsModel() const { return OptionsModel; }
+
+	UFUNCTION(BlueprintPure, Category="Managers")
+	UOptionsController* GetOptionsController() const { return OptionsController; }
 
 protected:
 	virtual void Init() override;
 
-	private:
-	UPROPERTY(Transient)
-	UGameManager* GameManagerInstance;
+private:
+	UPROPERTY()
+	UOptionsModel* OptionsModel = nullptr;
 
-	
+	UPROPERTY()
+	UOptionsController* OptionsController = nullptr;
 };

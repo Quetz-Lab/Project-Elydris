@@ -10,7 +10,7 @@ void UHUDWidget::OnNotify(FName EventName, float NewValue)
 	{
 		HealthText->SetText(FText::FromString(FString::Printf(TEXT("HP: %.0f"), NewValue)));
 	}
-	else if (EventName == "ScoreChanged" && ScoreText)
+	else if (EventName == "Score Changed" && ScoreText)
 	{
 		ScoreText->SetText(FText::FromString(FString(TEXT("Score: %d"), (int32)NewValue)));
 	}
