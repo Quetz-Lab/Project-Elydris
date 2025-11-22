@@ -20,7 +20,12 @@ public:
 	UFUNCTION(BlueprintCallable) void Cmd_SetVSync(bool b)               { if(Model) Model->SetVSync(b); }
 	UFUNCTION(BlueprintCallable) void Cmd_SetScalability(int32 L)        { if(Model) Model->SetScalability(L); }
 
-	UFUNCTION(BlueprintCallable) void Cmd_SetMaster(float V) { if(Model) Model->SetMaster(V); }
+	UFUNCTION(BlueprintCallable) void Cmd_SetMaster(float V)
+	{
+		if(Model) Model->SetMaster(V);
+		UE_LOG(LogTemp, Warning, TEXT("Cmd_SetMaster() - Model Instance: %s From C++"), *Model->GetName());
+
+	}
 	UFUNCTION(BlueprintCallable) void Cmd_SetMusic (float V) { if(Model) Model->SetMusic(V); }
 	UFUNCTION(BlueprintCallable) void Cmd_SetSFX   (float V) { if(Model) Model->SetSFX(V); }
 	UFUNCTION(BlueprintCallable) void Cmd_SetMouse (float V) { if(Model) Model->SetMouse(V); }

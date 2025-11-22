@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "Engine/Engine.h"
 #include "OptionsModel.generated.h"
 
 UENUM(BlueprintType)
@@ -93,6 +94,13 @@ public:
 	void SetMaster(float V)
 	{
 		MasterVolume = FMath::Clamp(V, 0.f, 1.f);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1, 2.f, FColor::Green,
+				FString::Printf(TEXT("Model::SetMaster -> %.2f"), MasterVolume)
+			);
+		}
 		OnAudioChanged.Broadcast();
 	}
 
