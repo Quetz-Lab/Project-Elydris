@@ -5,6 +5,7 @@
 #include "Engine/GameInstance.h"
 #include "OptionsModel.h"
 #include "OptionsController.h"
+#include  "Sound/SoundClass.h"
 #include "GameManager.generated.h"
 
 UCLASS()
@@ -22,6 +23,14 @@ public:
 
 protected:
 	virtual void Init() override;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	USoundClass* MasterSoundClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	USoundClass* MusicSoundClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Audio")
+	USoundClass* SFXSoundClass;
 
 private:
 	UPROPERTY()

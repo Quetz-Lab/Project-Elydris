@@ -1,10 +1,19 @@
 #include "OptionsController.h"
 #include "GameFramework/GameUserSettings.h"
-
+#include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
 void UOptionsController::Init(UOptionsModel* InModel)
 {
 	Model = InModel;
 	RevertFromSystem(); // sistema → model al arrancar
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1, 3.f, FColor::Green,
+			TEXT("C++: OptionsController::Init() llamado")
+		);
+	}
 }
 
 static EWindowMode::Type ToWindowMode(EMyFullScreen M)
@@ -40,7 +49,7 @@ void UOptionsController::ApplySoundClasses()
 	{
 		if (SC)
 		{
-			SC->Properties.Volume = V;
+			SC->Properties.Volume = FMath::Clamp(V, 0.f, 1.f);
 		}
 	};
 
@@ -51,9 +60,18 @@ void UOptionsController::ApplySoundClasses()
 
 void UOptionsController::ApplyAll()
 {
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1, 2.f, FColor::Yellow,
+			TEXT("C++: ApplyAll() llamado")
+		);
+	}
+
 	ApplyUGameUserSettings();
 	ApplySoundClasses();
 }
+
 
 void UOptionsController::RevertFromSystem()
 {

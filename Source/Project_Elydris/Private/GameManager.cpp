@@ -11,5 +11,9 @@ void UGameManager::Init()
 	if (OptionsController && OptionsModel)
 	{
 		OptionsController->Init(OptionsModel);
+		// PASO CLAVE: pasar las SoundClass al controller
+		OptionsController->MasterClass = MasterSoundClass;
+		OptionsController->MusicClass  = MusicSoundClass;
+		OptionsController->SFXClass    = SFXSoundClass;
 	}
 }
