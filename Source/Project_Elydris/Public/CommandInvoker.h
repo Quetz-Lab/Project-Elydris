@@ -20,7 +20,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Command")
 
 	//Funcion para ejecutar un comando
-	void ExecuteCommand(UCommand* Command);
+	void ExecuteCommand(UCommand* Command, bool bStoreInHistory = true);
 
 	//Funcion para deshacer el ultimo comando ejecutado
 	UFUNCTION(BlueprintCallable, Category = "Command")
