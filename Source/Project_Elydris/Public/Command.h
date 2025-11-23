@@ -9,130 +9,179 @@
 #include "GameFramework/PlayerController.h"
 #include "Command.generated.h"
 
-/**
- * 
- */
-UCLASS(Abstract, BlueprintType)
+// Command.h
+
+
+UCLASS(Abstract, BlueprintType, Blueprintable)
 class PROJECT_ELYDRIS_API UCommand : public UObject
 {
 	GENERATED_BODY()
 public:
-	//Funcion Execute, llama a las funciones encapsuladas
-	UFUNCTION(BlueprintCallable, Category = "Command")
 	virtual void Execute() PURE_VIRTUAL(UCommand::Execute, );
-	//Funcion Undo, deshace las funciones encapsuladas
-	UFUNCTION(BlueprintCallable, Category = "Command")
-	virtual void Undo() PURE_VIRTUAL(UCommand::Undo, );
+	virtual void Undo() { }
 };
-UCLASS ()
+
+// ===================== MOVE =====================
+
+UCLASS()
 class PROJECT_ELYDRIS_API UCommandMove : public UCommand
 {
-
 	GENERATED_BODY()
+
 public:
 	UCommandMove()
+		: Character(nullptr)
+		, MoveDirection(FVector::ZeroVector)
+		, Scale(0.f)
+		, PreviousLocation(FVector::ZeroVector)
 	{
-		Character = nullptr;
-		MoveDirection = FVector::ZeroVector;
-		Scale = 0.0f;
-		PreviousLocation = FVector::ZeroVector;
-	}
-	//Funcion para establecer el personaje, la direccion del movimiento
-	void SetCharacterAndInput(ACharacter* InCharacter, const FVector& InMoveDirection, float InScale)
-	{
-		Character = InCharacter;
-		MoveDirection = InMoveDirection;
-		Scale = InScale;
 	}
 
-	//Implementacion de las funciones Execute y Undo
+	void SetCharacterAndInput(ACharacter* InCharacter, const FVector& InMoveDirection, float InScale)
+	{
+		Character       = InCharacter;
+		MoveDirection   = InMoveDirection;
+		Scale           = InScale;
+	}
+
 	virtual void Execute() override
 	{
 		if (Character.IsValid())
 		{
-			//Almacenar la posicion previa del personaje
 			PreviousLocation = Character->GetActorLocation();
-
-			//Mover el personaje en la direccion especificada
 			Character->AddMovementInput(MoveDirection, Scale);
 		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("MoveCommand::Execute - Character is no longer valid"));
-		}
 	}
+
 	virtual void Undo() override
 	{
 		if (Character.IsValid())
 		{
-			//Restaurar la posicion previa del personaje
 			Character->SetActorLocation(PreviousLocation);
 		}
 	}
-private:
 
+private:
 	TWeakObjectPtr<ACharacter> Character;
-	//Vector para almacenar la direccion del movimiento
 	FVector MoveDirection;
-	float Scale;
-	//Vector para almacenar la posicion previa del personaje
+	float   Scale;
 	FVector PreviousLocation;
 };
+
+// ===================== JUMP =====================
+
 UCLASS()
 class PROJECT_ELYDRIS_API UJumpCommand : public UCommand
 {
 	GENERATED_BODY()
+
 public:
 	UJumpCommand()
+		: Character(nullptr)
 	{
-		Character = nullptr;
 	}
-	//Funcin para especificar al personaje
+
 	void SetCharacter(ACharacter* InCharacter)
 	{
 		Character = InCharacter;
 	}
-	// Sobrecarga Execute y Undo
+
 	virtual void Execute() override
 	{
-		if (Character.IsValid())
+		if (Character.IsValid() && Character->CanJump())
 		{
-			//Obtener el componente CharacterMovementComponent
-			UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-			if (MovementComponent)
-			{
-				bool bCanJump = Character->CanJump();
-				if (bCanJump)
-				{
-					Character->Jump();
-				}
-				else
-				{
-					UE_LOG(LogTemp, Warning, TEXT("Jump failed due to CanJump() returning false"));
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("JumpCommand::MovementComponent is null"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("JumpCommand::Character is invalid"));
+			Character->Jump();
 		}
 	}
-	/**
- * @brief Implementacin Undo
- */
+
 	virtual void Undo() override
 	{
 		if (Character.IsValid())
 		{
-			UE_LOG(LogTemp, Log, TEXT("JumpCommand::Undo called"));
 			Character->StopJumping();
 		}
 	}
+
 private:
 	TWeakObjectPtr<ACharacter> Character;
+};
 
+// ===================== DASH =====================
+
+UCLASS()
+class PROJECT_ELYDRIS_API UDashCommand : public UCommand
+{
+	GENERATED_BODY()
+
+public:
+	UDashCommand()
+		: Character(nullptr)
+		, DashDirection(FVector::ZeroVector)
+		, DashStrength(1500.f)
+	{
+	}
+
+	void SetCharacterAndDirection(ACharacter* InCharacter, const FVector& InDirection, float InStrength = 1500.f)
+	{
+		Character    = InCharacter;
+		DashDirection = InDirection.GetSafeNormal();
+		DashStrength  = InStrength;
+	}
+
+	virtual void Execute() override
+	{
+		if (!Character.IsValid())
+			return;
+
+		// Dash simple tipo Hollow Knight (luego tú lo refinas con state/anim)
+		const FVector DashVelocity = DashDirection * DashStrength;
+		Character->LaunchCharacter(DashVelocity, true, false);
+	}
+
+	virtual void Undo() override
+	{
+		// Si quisieras, aquí podrías restaurar velocidad, pero no es obligatorio
+	}
+
+private:
+	TWeakObjectPtr<ACharacter> Character;
+	FVector DashDirection;
+	float   DashStrength;
+};
+
+// ===================== ATTACK =====================
+
+UCLASS()
+class PROJECT_ELYDRIS_API UAttackCommand : public UCommand
+{
+	GENERATED_BODY()
+
+public:
+	UAttackCommand()
+		: Character(nullptr)
+	{
+	}
+
+	void SetCharacter(ACharacter* InCharacter)
+	{
+		Character = InCharacter;
+	}
+
+	virtual void Execute() override
+	{
+		if (!Character.IsValid())
+			return;
+
+		// Aquí solo hacemos algo sencillo.
+		// Lo "bonito" (animaciones / hitbox) lo disparas desde el Player via eventos.
+		UE_LOG(LogTemp, Log, TEXT("UAttackCommand::Execute - Attack triggered"));
+	}
+
+	virtual void Undo() override
+	{
+		// Podrías cancelar ataque si quieres, pero no es obligatorio.
+	}
+
+private:
+	TWeakObjectPtr<ACharacter> Character;
 };

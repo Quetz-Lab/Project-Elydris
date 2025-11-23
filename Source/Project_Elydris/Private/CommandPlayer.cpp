@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// CommandPlayer.cpp
 
 #include "CommandPlayer.h"
 #include "Command.h"
@@ -13,10 +13,10 @@
 // Sets default values
 ACommandPlayer::ACommandPlayer()
 {
-    //creacin del invoker
+    // creación del invoker
     CommandInvoker = CreateDefaultSubobject<UCommandInvoker>(TEXT("CommandInvoker"));
 
-    //creacin del JumpCommand
+    // creación del JumpCommand
     JumpCommand = CreateDefaultSubobject<UJumpCommand>(TEXT("JumpCommand"));
     JumpCommand->SetCharacter(this);
     InputMappingContext = nullptr;
@@ -28,8 +28,8 @@ ACommandPlayer::ACommandPlayer()
 void ACommandPlayer::BeginPlay()
 {
     Super::BeginPlay();
-
   
+
     // Reinicializar CommandInvoker y JumpCommand si son nulos.
     if (!CommandInvoker)
     {
@@ -50,7 +50,7 @@ void ACommandPlayer::BeginPlay()
     if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
     {
         MovementComponent->SetMovementMode(MOVE_Walking);
-
+        
         FHitResult Hit;
         FVector Start = GetActorLocation();
         FVector End = Start - FVector(0, 0, 50.0f);
@@ -71,7 +71,8 @@ void ACommandPlayer::BeginPlay()
     {
         if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
         {
-            if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+            if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
             {
                 Subsystem->AddMappingContext(InputMappingContext, 0);
                 UE_LOG(LogTemp, Log, TEXT("Input Mapping Context applied: %s"), *GetNameSafe(InputMappingContext));
@@ -90,6 +91,8 @@ void ACommandPlayer::BeginPlay()
     {
         UE_LOG(LogTemp, Warning, TEXT("InputMappingContext is null"));
     }
+    FVector Loc = GetActorLocation();
+    UE_LOG(LogTemp, Warning, TEXT("Location at start: %s"), *Loc.ToString());
 }
 
 void ACommandPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -98,7 +101,7 @@ void ACommandPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
     UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent called, CommandInvoker: %s, JumpCommand: %s"),
         *GetNameSafe(CommandInvoker), *GetNameSafe(JumpCommand));
 
-    //Bindear los Input Action del jugador
+    // Bindear los Input Action del jugador
     if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
     {
         if (JumpAction)
@@ -112,17 +115,31 @@ void ACommandPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
             UE_LOG(LogTemp, Log, TEXT("Binding MoveAction"));
             EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACommandPlayer::OnMove);
 
-            //Crear dos Binds adicionales para el input de movimiento, completed y cancelled. Esto para llamar al evento OnStop cuando el jugador deje de moverse
+            // Binds adicionales para el input de movimiento (Completed y Canceled)
             EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ACommandPlayer::OnStop);
             EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Canceled, this, &ACommandPlayer::OnStop);
-        }                                                                                           
-                                                                                                    
-        if (UndoAction)                                                                             
-        {                                                                                           
-            UE_LOG(LogTemp, Log, TEXT("Binding UndoAction"));                                       
+        }
+
+        if (UndoAction)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Binding UndoAction"));
             EnhancedInputComponent->BindAction(UndoAction, ETriggerEvent::Triggered, this, &ACommandPlayer::OnUndo);
         }
 
+        // 💥 NUEVO: Bind de Dash
+        if (DashAction)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Binding DashAction"));
+            // Usamos Started para que solo se dispare una vez al presionar
+            EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Started, this, &ACommandPlayer::OnDash);
+        }
+
+        // 💥 NUEVO: Bind de Attack
+        if (AttackAction)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Binding AttackAction"));
+            EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &ACommandPlayer::OnAttack);
+        }
     }
     else
     {
@@ -132,10 +149,13 @@ void ACommandPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void ACommandPlayer::OnJump(const FInputActionValue& Value)
 {
-    if (CommandInvoker && JumpCommand)
+    if (CommandInvoker)
     {
+        UJumpCommand* NewJumpCommand = NewObject<UJumpCommand>(this, UJumpCommand::StaticClass());
+        NewJumpCommand->SetCharacter(this);
+
         UE_LOG(LogTemp, Log, TEXT("Executing JumpCommand"));
-        CommandInvoker->ExecuteCommand(JumpCommand);
+        CommandInvoker->ExecuteCommand(NewJumpCommand, /*bStoreInHistory*/ true);
 
         OnJumpEvent.Broadcast();
     }
@@ -143,49 +163,53 @@ void ACommandPlayer::OnJump(const FInputActionValue& Value)
 
 void ACommandPlayer::OnMove(const FInputActionValue& Value)
 {
-    if (CommandInvoker)
+    if (!CommandInvoker)
+        return;
+
+    FVector2D MovementInput = Value.Get<FVector2D>();
+
+    if (MovementInput.IsNearlyZero())
     {
-        FVector2D MovementInput = Value.Get<FVector2D>();
-
-        if (MovementInput.IsNearlyZero())
-        {
-            UE_LOG(LogTemp, Log, TEXT("NotMoving"));
-            OnStopMoveEvent.Broadcast();
-            return;
-        }
-
-        FVector Forward = GetActorForwardVector();
-        FVector Right = GetActorRightVector();
-        FVector MoveDirection = (Forward * MovementInput.Y + Right * MovementInput.X).GetSafeNormal();
-
-        //crear comando
-        UCommandMove* MoveCommand = NewObject<UCommandMove>(this, UCommandMove::StaticClass());
-
-        if (MovementInput.SquaredLength() > 0)
-        {
-            OnMoveEvent.Broadcast();
-        }
-        else
-        {
-            OnStopMoveEvent.Broadcast();
-        }
-
-        //Setear y ejecutar comando
-        MoveCommand->SetCharacterAndInput(this, MoveDirection, MovementInput.Size());
-        CommandInvoker->ExecuteCommand(MoveCommand);
-
-
-        UE_LOG(LogTemp, Log, TEXT("ExecuteCommand(MoveCommand)"));
+        UE_LOG(LogTemp, Log, TEXT("NotMoving"));
+        OnStopMoveEvent.Broadcast();
+        return;
     }
+
+    // 👇 ACTUALIZAR HACIA DÓNDE MIRA (a partir del input)
+    // OJO: aquí asumo que tu eje horizontal es MovementInput.X.
+    // Si en tu InputMappingContext usas Y como horizontal, cambia X por Y.
+    if (MovementInput.X > 0.f)
+    {
+        bFacingRight = false;
+    }
+    else if (MovementInput.X < 0.f)
+    {
+        bFacingRight = true;
+    }
+
+    FVector Forward       = GetActorForwardVector();
+    FVector Right         = GetActorRightVector();
+    FVector MoveDirection = (Forward * MovementInput.Y + Right * MovementInput.X).GetSafeNormal();
+
+    UCommandMove* MoveCommand = NewObject<UCommandMove>(this, UCommandMove::StaticClass());
+    MoveCommand->SetCharacterAndInput(this, MoveDirection, MovementInput.Size());
+
+    if (MovementInput.SquaredLength() > 0)
+        OnMoveEvent.Broadcast();
+    else
+        OnStopMoveEvent.Broadcast();
+
+    CommandInvoker->ExecuteCommand(MoveCommand, /*bStoreInHistory*/ false);
+
+    UE_LOG(LogTemp, Log, TEXT("ExecuteCommand(MoveCommand)"));
 }
+
 
 void ACommandPlayer::OnStop(const FInputActionValue& Value)
 {
     UE_LOG(LogTemp, Log, TEXT("OnStop called"));
     OnStopMoveEvent.Broadcast();
 }
-
-
 
 void ACommandPlayer::OnUndo(const FInputActionValue& Value)
 {
@@ -196,3 +220,41 @@ void ACommandPlayer::OnUndo(const FInputActionValue& Value)
     }
 }
 
+// 💥 NUEVO: Dash
+void ACommandPlayer::OnDash(const FInputActionValue& Value)
+{
+    if (!CommandInvoker)
+        return;
+
+    UE_LOG(LogTemp, Log, TEXT("OnDash called"));
+
+    // Dash completamente lateral según eje Y
+    FVector DashDir = bFacingRight ? FVector(0, 1, 0) : FVector(0, -1, 0);
+
+
+    UDashCommand* DashCommand = NewObject<UDashCommand>(this, UDashCommand::StaticClass());
+    DashCommand->SetCharacterAndDirection(this, DashDir, 1500.f); // ajusta la fuerza a gusto
+
+    CommandInvoker->ExecuteCommand(DashCommand, /*bStoreInHistory*/ true);
+
+    OnDashEvent.Broadcast();
+}
+
+
+
+
+// 💥 NUEVO: Attack
+void ACommandPlayer::OnAttack(const FInputActionValue& Value)
+{
+    if (!CommandInvoker)
+        return;
+
+    UE_LOG(LogTemp, Log, TEXT("OnAttack called"));
+
+    UAttackCommand* AttackCommand = NewObject<UAttackCommand>(this, UAttackCommand::StaticClass());
+    AttackCommand->SetCharacter(this);
+
+    CommandInvoker->ExecuteCommand(AttackCommand, /*bStoreInHistory*/ true);
+
+    OnAttackEvent.Broadcast();
+}

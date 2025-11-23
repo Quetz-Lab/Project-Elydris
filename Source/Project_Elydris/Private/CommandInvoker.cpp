@@ -10,12 +10,16 @@ UCommandInvoker::UCommandInvoker()
  * @brief Llamar esta funcin para ejecutar un comando
  * @param Command el comando a ejecutar y guardar en la lista
  */
-void UCommandInvoker::ExecuteCommand(UCommand* Command)
+void UCommandInvoker::ExecuteCommand(UCommand* Command, bool bStoreInHistory)
 {
 	if (Command)
 	{
 		Command->Execute();
-		CommandHistory.Add(Command);
+
+		if (bStoreInHistory)
+		{
+			CommandHistory.Add(Command);
+		}
 	}
 	else
 	{
@@ -27,7 +31,7 @@ void UCommandInvoker::Undo()
 {
 	if (CommandHistory.Num() > 0)
 	{
-		//La funcin pop toma en ltimo comando de la lista aaddido LIFO (LastInFirstOut) y lo elimina una vez referenciado
+		//La funcion pop toma en ultimo comando de la lista añadido a LIFO (LastInFirstOut) y lo elimina una vez referenciado
 		UCommand* LastCommand = CommandHistory.Pop();
 		//ejecuta la funcin Undo del comando
 		LastCommand->Undo();
